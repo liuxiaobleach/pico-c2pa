@@ -1,73 +1,144 @@
-# C2PA Signature Verification Tool
+# brevis-c2pa-verifier
 
-C2PA 图片签名验证工具，用于验证图片的 C2PA（Coalition for Content Provenance and Authenticity）签名。
+基于 Pico ZKVM 的 C2PA 图片签名验证零知识证明项目。
 
-## 功能特性
+## 项目简介
 
-- 支持从文件或 base64 输入验证图片
-- 自动检测图片格式（JPEG, PNG, WebP, GIF, AVIF）
-- 显示 C2PA manifest 信息
-- 列出图片的 ingredients
-- 支持完整的签名验证（需要信任锚点）
+本项目实现了一个基于零知识证明的 C2PA（Coalition for Content Provenance and Authenticity）图片签名验证系统。
 
-## 构建
+### 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      brevis-c2pa-verifier                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    │
+│  │    verifier   │    │   app-c2pa   │    │ prover-c2pa  │    │
+│  │  (主机工具)   │    │ (Pico ZKVM)  │    │  (生成 Proof) │    │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘    │
+│         │                    │                    │              │
+│         ▼                    ▼                    ▼              │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
+│  │  C2PA 签名   │    │  ELF 二进制  │    │  ZK Proof   │      │
+│  │  验证工具    │    │  (RISC-V)    │    │  + Public   │      │
+│  └──────────────┘    └──────────────┘    └──────────────┘      │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 模块说明
+
+| 模块 | 说明 |
+|------|------|
+| `verifier` | 主机上的 C2PA 验证工具，可直接验证图片的 C2PA 签名 |
+| `app-c2pa` | 运行在 Pico ZKVM 上的 C2PA 验证应用 |
+| `prover-c2pa` | 生成 ZK Proof，验证 app-c2pa 的执行结果 |
+
+## 环境要求
+
+- Rust 2024 edition
+- Pico SDK (通过 `cargo pico` 工具链)
+- Nightly Rust 工具链
+
+## 快速开始
+
+### 1. 安装 Pico 工具链
 
 ```bash
-# 构建项目
-cargo build -p verifier
+cargo install cargo-pico
+```
+
+### 2. 构建项目
+
+```bash
+# 构建所有包
+cargo build
 ```
 
 ## 使用方法
 
-### 1. 从文件验证
+### 方式一：使用 verifier（主机工具）
+
+直接验证图片的 C2PA 签名，无需零知识证明。
 
 ```bash
+# 从文件验证
 cargo run -p verifier -- --file <图片路径>
-```
 
-示例：
+# 示例
+cargo run -p verifier -- --file ./verifier/src/DSC00050.JPG
 
-```bash
-cargo run -p verifier -- --file ./src/DSC00050.JPG
-```
+# 详细输出（显示完整 JSON）
+cargo run -p verifier -- --file <图片路径> --verbose
 
-### 2. 从 base64 验证
-
-```bash
-# 将图片转为 base64
-base64 <图片路径> | tr -d '\n'
-
-# 使用 base64 数据验证
+# 从 base64 验证
 cargo run -p verifier -- --base64 "<base64字符串>"
 ```
 
-### 3. 详细输出模式
+### 方式二：使用 Pico ZKVM + Prover
 
-添加 `-v` 或 `--verbose` 参数查看完整的 JSON manifest 信息：
+通过零知识证明验证 C2PA 签名，保护隐私。
 
-```bash
-cargo run -p verifier -- --file <图片路径> --verbose
-```
-
-### 4. 完整签名验证
-
-要进行完整的签名验证（验证证书链），需要提供 C2PA 信任锚点文件。
-
-首先从 [C2PA Trust Lists](https://opensource.contentauthenticity.org/docs/conformance/trust-lists) 下载信任列表 PEM 文件，然后运行：
+#### 步骤 1: 编译 app-c2pa
 
 ```bash
-cargo run -p verifier -- --file <图片路径> --trust-anchors <信任列表.pem>
+cd app-c2pa
+cargo pico build
 ```
 
-或者使用 settings 文件：
+这会生成 ELF 文件：`app-c2pa/elf/riscv32im-pico-zkvm-elf`
+
+#### 步骤 2: 运行 prover 生成 Proof
 
 ```bash
-cargo run -p verifier -- --file <图片路径> --settings <settings文件>
+cargo run -p prover-c2pa
 ```
 
-## 输出说明
+这会在 Pico ZKVM 上执行 app-c2pa 并生成零知识证明。
 
-### 验证成功（有 C2PA manifest）
+## 命令参考
+
+### verifier 命令
+
+```bash
+cargo run -p verifier -- [OPTIONS]
+
+Options:
+  -f, --file <FILE>           图片文件路径
+      --base64 <BASE64>       Base64 编码的图片数据
+  -s, --settings <FILE>       信任设置文件（可选）
+  -t, --trust-anchors <FILE> 信任锚点 PEM 文件（可选）
+  -v, --verbose               详细输出模式
+  -h, --help                  帮助信息
+```
+
+### app-c2pa 编译
+
+```bash
+cd app-c2pa
+cargo pico build
+
+# 指定输出目录
+cargo pico build --output-directory <目录>
+```
+
+### prover-c2pa 运行
+
+```bash
+cargo run -p prover-c2pa
+```
+
+## 运行测试
+
+```bash
+# 运行 verifier 测试
+cargo test -p verifier
+```
+
+## 输出示例
+
+### verifier 输出（有 C2PA 签名）
 
 ```
 === C2PA Verification Results ===
@@ -76,76 +147,71 @@ cargo run -p verifier -- --file <图片路径> --settings <settings文件>
 
 --- Manifest Info ---
 ✓ C2PA Manifest: Found
-  Label: <manifest标签>
-  Claim Generator: <生成器信息>
-  Title: <标题>
-
---- Ingredients (N items) ---
-  - <文件名> (<格式>): ✓ with manifest / ✗ no manifest
+  Label: urn:uuid:4d7c9981-d887-4005-829a-033422a7e865
+  Claim Generator: SONY_CAMERA
+  Title: DSC00050.JPG
 
 ================================
 ```
 
-### 验证成功（无 C2PA manifest）
+### prover-c2pa 输出
 
 ```
-=== C2PA Verification Results ===
-
-✓ Verification Status: PASSED
-
---- Manifest Info ---
-✗ C2PA Manifest: Not Found
-
---- Warnings ---
-  ⚠ No C2PA manifest found in the image
-
-================================
+Input: image_hash=1311768467294899695, expected_hash=1311768467294899695, size=150000, is_signed=true
+[DEBUG] postprocess: accessed_addrs len: 14758
+Public values: C2paResult {
+    hash_valid: false,
+    computed_hash: 17407...,
+    image_hash: 13117...,
+    expected_hash: 13117...,
+    image_size: 150000,
+    is_signed: true
+}
+hash_valid: false (computed in ZKVM)
+Verification PASSED!
 ```
 
-### 验证失败
+## Public Value 说明
+
+**Public Value（公开值）** 是在 ZKVM 中执行程序后，向外部公开的部分证明数据。
+
+特点：
+- 公开可见，任何人都可以查看
+- 无需知道原始输入就能验证计算正确性
+- 原始输入（图片数据）在 ZKVM 内部保持私密
+
+## 项目结构
 
 ```
-=== C2PA Verification Results ===
-
-✗ Verification Status: FAILED
-
---- Manifest Info ---
-✗ C2PA Manifest: Not Found
-
---- Errors ---
-  ✗ <错误信息>
-
-================================
+brevis-c2pa-verifier/
+├── Cargo.toml              # Workspace 配置
+├── app/                   # 原来的 Fibonacci app
+├── app-c2pa/              # C2PA 验证 app (Pico ZKVM)
+│   ├── Cargo.toml
+│   ├── src/main.rs
+│   └── elf/               # 编译生成的 ELF
+├── lib/                   # 公共库
+├── prover/                # 原来的 Fibonacci prover
+├── prover-c2pa/           # C2PA prover
+│   ├── Cargo.toml
+│   └── src/main.rs
+├── verifier/              # C2PA 验证工具
+│   ├── Cargo.toml
+│   ├── README.md
+│   └── src/
+│       ├── main.rs
+│       └── verifier_test.rs
+└── openspec/              # OpenSpec 配置
 ```
-
-## 程序参数
-
-| 参数 | 简写 | 说明 |
-|------|------|------|
-| `--file` | `-f` | 图片文件路径 |
-| `--base64` | - | Base64 编码的图片数据 |
-| `--settings` | `-s` | 信任设置文件路径（可选） |
-| `--trust-anchors` | `-t` | 信任锚点 PEM 文件路径（可选） |
-| `--verbose` | `-v` | 详细输出模式 |
-
-## 运行测试
-
-```bash
-# 运行所有单元测试
-cargo test -p verifier
-```
-
-## 依赖
-
-- Rust 2024 edition
-- c2pa = "0.76" (with file_io feature)
-- clap = "4.5"
-- base64 = "0.22"
-- serde = "1.0"
-- serde_json = "1.0"
 
 ## 注意事项
 
-1. 没有 C2PA manifest 的图片会被标记为 "PASSED" 但会显示警告 "No C2PA manifest found"
+1. 没有 C2PA manifest 的图片会被标记为 "PASSED" 但会显示警告
 2. 完整的签名验证需要提供信任锚点文件
 3. 支持的图片格式：JPEG, PNG, WebP, GIF, AVIF
+
+## 相关链接
+
+- [C2PA 官方文档](https://c2pa.org/)
+- [Pico SDK 文档](https://docs.brevis.network/)
+- [C2PA Rust SDK](https://github.com/contentauth/c2pa-rust)

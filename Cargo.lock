@@ -157,6 +157,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "app-c2pa"
+version = "0.1.0"
+dependencies = [
+ "pico-sdk",
+ "serde",
+]
+
+[[package]]
 name = "ark-ff"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3550,6 +3558,15 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "fibonacci-lib",
+ "pico-sdk",
+ "serde",
+]
+
+[[package]]
+name = "prover-c2pa"
+version = "0.1.0"
+dependencies = [
+ "bincode",
  "pico-sdk",
  "serde",
 ]
