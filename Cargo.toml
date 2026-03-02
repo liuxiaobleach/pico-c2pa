@@ -1,8 +1,9 @@
 [workspace]
-members = [ 
+members = [
     "lib",
-    "app", 
+    "app",
     "prover",
+    "verifier",
 ]
 resolver = "2"
 

@@ -1,0 +1,19 @@
+[package]
+name = "verifier"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+c2pa = { version = "0.76", features = ["file_io"] }
+clap = { version = "4.5", features = ["derive"] }
+log = "0.4"
+env_logger = "0.11"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+base64 = "0.22"
+
+[dev-dependencies]
+tempfile = "3.14"
+
+[patch.crates-io]
+thiserror = { version = "2.0" }
