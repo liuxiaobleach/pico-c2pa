@@ -1,2 +1,11 @@
 /target
 .idea
+.DS_Store
+*.swp
+*.swo
+*~
+# ELF binaries
+app/elf/*.elf
+app-c2pa/elf/*.elf
+# Cargo lock can be kept or ignored based on preference
+# Cargo.lock
