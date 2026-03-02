@@ -54,6 +54,7 @@ C2PA 是一个开放标准，用于记录和验证数字内容的来源和真实
 | `verifier` | 主机上的 C2PA 验证工具，可直接验证图片的 C2PA 签名 |
 | `app-c2pa` | 运行在 Pico ZKVM 上的 C2PA 验证应用 |
 | `prover-c2pa` | 生成 ZK Proof，验证 app-c2pa 的执行结果 |
+| `cropper` | C2PA 图片裁剪工具，验证原始图片后进行裁剪并重新签名 |
 
 ## 环境要求
 
@@ -136,8 +137,28 @@ Options:
       --base64 <BASE64>       Base64 编码的图片数据
   -s, --settings <FILE>       信任设置文件（可选）
   -t, --trust-anchors <FILE>  信任锚点 PEM 文件（可选）
+      --skip-trust            跳过证书信任验证（推荐）
+      --history               显示修改历史（actions）
   -v, --verbose               详细输出模式
   -h, --help                  帮助信息
+```
+
+### cropper 命令
+
+```bash
+cd cropper
+cargo build
+./target/debug/cropper [OPTIONS]
+
+Options:
+  -i, --input <FILE>          输入图片文件路径（必需）
+  -o, --output <FILE>         输出图片文件路径（必需）
+      --x <INT>               裁剪区域 x 坐标（默认 0）
+      --y <INT>               裁剪区域 y 坐标（默认 0）
+      --width <INT>           裁剪区域宽度（必需）
+      --height <INT>          裁剪区域高度（必需）
+      --skip-verify           跳过原始图片验证
+  -v, --verbose               详细输出模式
 ```
 
 ### app-c2pa 编译
@@ -171,7 +192,31 @@ cargo run -p prover-c2pa
   Claim Generator: SONY_CAMERA
   Title: DSC00050.JPG
 
+--- Validation Checks ---
+  ✗ signingCredential.untrusted: signing certificate untrusted
+  ✓ timeStamp.validated: timestamp message digest matched
+  ✓ timeStamp.trusted: timestamp cert trusted
+  ✓ claimSignature.validated: claim signature valid
+  ✓ assertion.dataHash.match: data hash valid
+
 ================================
+```
+
+### verifier --history 输出（显示修改历史）
+
+```
+--- Modification History (3 steps) ---
+  [Step 1] c2pa.created
+           Software: SONY_CAMERA
+           Source: DSC00050.JPG
+
+  [Step 2] c2pa.opened
+           Source: cropped.jpg
+
+  [Step 3] c2pa.cropped
+           Software: cropper/0.1.0
+           Params: width: 1000, height: 1000, x: 0, y: 0
+           Source: cropped.jpg
 ```
 
 ### verifier --verbose 输出（完整 JSON）
@@ -224,14 +269,40 @@ Verification PASSED!
 | **Title** | 文件名 |
 | **format** | 图片格式（image/jpeg） |
 
-### 验证状态
+### 验证状态（Validation Checks）
 
 | 状态 | 说明 |
 |------|------|
-| ✅ timeStamp.validated | 时间戳验证通过 |
+| ✅ timeStamp.validated | 时间戳消息摘要匹配 |
 | ✅ timeStamp.trusted | 时间戳证书受信任 |
 | ✅ claimSignature.validated | 声明签名有效 |
-| ✅ assertion.dataHash.match | 数据哈希匹配 |
+| ✅ claimSignature.insideValidity | 签名在有效期内 |
+| ✅ assertion.dataHash.match | **图片内容没有被修改** |
+| ⚠️ signingCredential.untrusted | 签名证书不在信任列表中 |
+
+### 验证说明
+
+**为什么可以忽略 `signingCredential.untrusted`？**
+
+这是两个独立的验证：
+1. **签名有效** - 用私钥签名，能用公钥解开
+2. **证书信任** - 证书是否在 Adobe AATL 信任列表中
+
+即使不知道签名者是否可信（证书不受信任），我们仍然可以通过以下验证保证图片真实性：
+- `assertion.dataHash.match` = 图片内容没被修改 ✅
+- `claimSignature.validated` = 签名有效 ✅
+
+### 修改历史（Actions）
+
+C2PA 会记录图片的所有操作历史：
+
+| Action | 说明 |
+|--------|------|
+| `c2pa.created` | 首次创建（相机拍摄） |
+| `c2pa.opened` | 打开图片 |
+| `c2pa.cropped` | 裁剪操作 |
+| `c2pa.edited` | 编辑操作 |
+| `c2pa.filtered` | 滤镜/效果 |
 
 ## Public Value 说明
 
@@ -270,22 +341,22 @@ Verification PASSED!
 ```
 brevis-c2pa-verifier/
 ├── Cargo.toml              # Workspace 配置
-├── app/                   # 原来的 Fibonacci app
 ├── app-c2pa/              # C2PA 验证 app (Pico ZKVM)
 │   ├── Cargo.toml
 │   ├── src/main.rs
 │   └── elf/               # 编译生成的 ELF
-├── lib/                   # 公共库
-├── prover/                # 原来的 Fibonacci prover
 ├── prover-c2pa/           # C2PA prover
 │   ├── Cargo.toml
 │   └── src/main.rs
-├── verifier/              # C2PA 验证工具
+├── verifier/               # C2PA 验证工具
 │   ├── Cargo.toml
-│   ├── README.md
 │   └── src/
 │       ├── main.rs
-│       └── verifier_test.rs
+│       ├── verifier_test.rs
+│       └── DSC00050.JPG   # 测试图片
+├── cropper/               # C2PA 图片裁剪工具
+│   ├── Cargo.toml
+│   └── src/main.rs
 └── openspec/              # OpenSpec 配置
 ```
 

@@ -138,6 +138,8 @@ fn test_verify_from_base64_no_manifest() {
 /// Test VerificationResult serialization
 #[test]
 fn test_verification_result_serialization() {
+    use crate::ValidationCheck;
+
     let result = VerificationResult {
         is_valid: true,
         has_manifest: true,
@@ -155,6 +157,12 @@ fn test_verification_result_serialization() {
         json_output: Some("{}".to_string()),
         errors: vec![],
         warnings: vec!["test warning".to_string()],
+        modification_history: vec![],
+        validation_checks: vec![ValidationCheck {
+            name: "test.check".to_string(),
+            status: "passed".to_string(),
+            description: "Test passed".to_string(),
+        }],
     };
 
     let json = serde_json::to_string(&result).unwrap();

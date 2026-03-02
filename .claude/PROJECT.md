@@ -19,7 +19,7 @@
 │   ├── Cargo.toml
 │   ├── src/main.rs
 │   ├── src/verifier_test.rs
-│   └── src/DSC00050.JPG        # 测试图片
+│   └── src/DSC00050.JPG        # 测试图片（索尼相机拍摄）
 ├── app-c2pa/                   # Pico ZKVM 应用
 │   ├── Cargo.toml
 │   ├── src/main.rs
@@ -27,6 +27,10 @@
 ├── prover-c2pa/                # ZK Proof 生成器
 │   ├── Cargo.toml
 │   └── src/main.rs
+├── cropper/                    # C2PA 图片裁剪工具
+│   ├── Cargo.toml
+│   ├── src/main.rs
+│   └── sigcert.p12            # 设备证书（如果有）
 └── openspec/                   # OpenSpec 配置
 ```
 
@@ -37,6 +41,7 @@
 - 支持文件输入和 base64 输入
 - 使用 `c2pa-rust` 库 (v0.76)
 - 支持格式: JPEG, PNG, WebP, GIF, AVIF
+- **新功能**: `--history` 显示修改历史, `--skip-trust` 跳过证书信任验证
 
 ### 2. app-c2pa (Pico ZKVM 应用)
 - 运行在 RISC-V 架构 (riscv32im-pico-zkvm-elf)
@@ -49,6 +54,11 @@
 - 在 Pico ZKVM 上执行 app-c2pa
 - 生成零知识证明并验证 public values
 
+### 4. cropper (图片裁剪工具)
+- 验证原始图片的 C2PA 签名
+- 裁剪图片
+- 创建新的 C2PA manifest 记录裁剪操作
+
 ## 常用命令
 
 ```bash
@@ -57,7 +67,10 @@ cargo build
 
 # 运行 verifier (直接验证)
 cargo run -p verifier -- --file <图片路径>
-cargo run -p verifier -- --file ./verifier/src/DSC00050.JPG --verbose
+cargo run -p verifier -- --file ./verifier/src/DSC00050.JPG --skip-trust
+
+# 显示修改历史
+cargo run -p verifier -- --file <图片路径> --skip-trust --history
 
 # 构建 Pico ZKVM app
 cd app-c2pa && cargo pico build
@@ -65,9 +78,51 @@ cd app-c2pa && cargo pico build
 # 运行 prover (ZK 验证)
 cargo run -p prover-c2pa
 
+# 运行 cropper (裁剪图片)
+cd cropper && cargo build
+./target/debug/cropper --input <原图> --output <输出> --width 1000 --height 1000
+
 # 运行测试
 cargo test -p verifier
 ```
+
+## verifier 输出说明
+
+### 验证检查 (Validation Checks)
+
+| 验证项 | 状态 | 说明 |
+|--------|------|------|
+| `timeStamp.validated` | ✅ | 时间戳消息摘要匹配 |
+| `timeStamp.trusted` | ✅ | 时间戳证书受信任 |
+| `claimSignature.validated` | ✅ | 声明签名有效 |
+| `claimSignature.insideValidity` | ✅ | 签名在有效期内 |
+| `assertion.dataHash.match` | ✅ | **图片内容没有被修改** |
+| `signingCredential.untrusted` | ⚠️ | 签名证书不在信任列表中 |
+
+### 修改历史 (Modification History)
+
+```
+--- Modification History (3 steps) ---
+  [Step 1] c2pa.created           # 相机创建
+           Software: SONY_CAMERA
+
+  [Step 2] c2pa.opened            # 打开图片
+
+  [Step 3] c2pa.cropped           # 裁剪操作
+           Params: width: 1000, height: 1000, x: 0, y: 0
+```
+
+### 重要说明
+
+**为什么可以忽略 `signingCredential.untrusted`？**
+
+- 这是两个独立的验证：
+  1. **签名有效** = 用私钥签名，能用公钥解开
+  2. **证书信任** = 证书是否在 Adobe AATL 信任列表中
+
+- 即使不知道签名者是否可信（证书不受信任），仍可通过以下验证保证图片真实性：
+  - `assertion.dataHash.match` = 图片内容没被修改 ✅
+  - `claimSignature.validated` = 签名有效 ✅
 
 ## 依赖项
 
@@ -76,37 +131,7 @@ cargo test -p verifier
 - **clap**: v4.5 - CLI 参数解析
 - **serde**: v1.0.205 - 序列化
 - **log, env_logger**: 日志
-
-## 输出示例
-
-### verifier 成功输出
-```
-=== C2PA Verification Results ===
-
-✓ Verification Status: PASSED
-
---- Manifest Info ---
-✓ C2PA Manifest: Found
-  Label: urn:uuid:4d7c9981-d887-4005-829a-033422a7e865
-  Claim Generator: SONY_CAMERA
-  Title: DSC00050.JPG
-```
-
-### prover-c2pa 输出
-```
-Input: image_hash=1311768467294899695, expected_hash=1311768467294899695, size=150000, is_signed=true
-
-Public values: C2paResult {
-    hash_valid: false,
-    computed_hash: 17407...,
-    image_hash: 13117...,
-    expected_hash: 13117...,
-    image_size: 150000,
-    is_signed: true
-}
-
-Verification PASSED!
-```
+- **image**: v0.25 - 图片处理 (cropper 使用)
 
 ## 环境要求
 
@@ -116,6 +141,7 @@ Verification PASSED!
 
 ## 注意事项
 
-1. 没有 C2PA manifest 的图片会显示 PASSED 但有警告
-2. 完整签名验证需要信任锚点文件
-3. ZK 方式保护了图片数据的隐私，只公开验证结果
+1. 使用 `--skip-trust` 可以跳过证书信任验证，避免 `signingCredential.untrusted` 警告
+2. 没有 C2PA manifest 的图片会显示 PASSED 但有警告
+3. 完整签名验证需要信任锚点文件
+4. ZK 方式保护了图片数据的隐私，只公开验证结果

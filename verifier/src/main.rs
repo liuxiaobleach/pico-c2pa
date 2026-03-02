@@ -7,6 +7,8 @@ use c2pa::{Reader, Result};
 use clap::Parser;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
+#[allow(unused_imports)]
+use serde_json::Value;
 use std::io::Cursor;
 use std::path::PathBuf;
 
@@ -30,6 +32,14 @@ struct Args {
     #[arg(short, long, value_name = "FILE")]
     trust_anchors: Option<PathBuf>,
 
+    /// Skip trust verification (don't check if signing certificate is trusted)
+    #[arg(long, default_value = "false")]
+    skip_trust: bool,
+
+    /// Show modification history (actions)
+    #[arg(long, default_value = "false")]
+    history: bool,
+
     /// Verbose output
     #[arg(short, long)]
     verbose: bool,
@@ -44,6 +54,15 @@ pub struct VerificationResult {
     pub json_output: Option<String>,
     pub errors: Vec<String>,
     pub warnings: Vec<String>,
+    pub modification_history: Vec<ModificationRecord>,
+    pub validation_checks: Vec<ValidationCheck>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidationCheck {
+    pub name: String,
+    pub status: String,  // "passed", "failed", "warning"
+    pub description: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -59,6 +78,16 @@ pub struct IngredientInfo {
     pub title: Option<String>,
     pub format: Option<String>,
     pub has_manifest: bool,
+}
+
+/// Represents a single modification record
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModificationRecord {
+    pub step: usize,
+    pub action: String,
+    pub software_agent: Option<String>,
+    pub source: String,  // "active_manifest" or ingredient title
+    pub parameters: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -101,7 +130,7 @@ fn main() -> Result<()> {
     };
 
     // Print results
-    print_results(&verification_result, args.verbose);
+    print_results(&verification_result, args.verbose, args.history);
 
     // Exit with appropriate code
     if verification_result.is_valid {
@@ -137,6 +166,8 @@ pub fn verify_from_base64(base64_data: &str, args: &Args) -> Result<Verification
                     json_output: None,
                     errors: Vec::new(),
                     warnings: vec!["No C2PA manifest found in the image".to_string()],
+                    modification_history: Vec::new(),
+                    validation_checks: Vec::new(),
                 });
             }
             return Err(e);
@@ -164,6 +195,8 @@ fn verify_from_file(args: &Args, file: &PathBuf) -> Result<VerificationResult> {
                     json_output: None,
                     errors: Vec::new(),
                     warnings: vec!["No C2PA manifest found in the image".to_string()],
+                    modification_history: Vec::new(),
+                    validation_checks: Vec::new(),
                 });
             }
             return Err(e);
@@ -272,6 +305,13 @@ fn create_reader_from_stream(
 
 /// Build context from settings if provided
 fn build_context(args: &Args) -> Result<Option<c2pa::Context>> {
+    // If skip_trust is set, configure settings to skip trust verification
+    if args.skip_trust {
+        let settings = c2pa::settings::Settings::new()
+            .with_value("verify.verify_trust", false)?;
+        return Ok(Some(c2pa::Context::new().with_settings(settings)?));
+    }
+
     if let Some(settings_path) = &args.settings {
         let settings_content = std::fs::read_to_string(settings_path)?;
         return Ok(Some(c2pa::Context::new().with_settings(settings_content)?));
@@ -287,6 +327,190 @@ fn build_context(args: &Args) -> Result<Option<c2pa::Context>> {
     Ok(None)
 }
 
+/// Extract modification history from the manifest JSON
+fn extract_modification_history(json_str: &str) -> Vec<ModificationRecord> {
+    let mut records = Vec::new();
+
+    // Parse the JSON
+    let json: Value = match serde_json::from_str(json_str) {
+        Ok(v) => v,
+        Err(_) => return records,
+    };
+
+    // Get the manifests object
+    let manifests = match json.get("manifests").and_then(|m| m.as_object()) {
+        Some(m) => m,
+        None => return records,
+    };
+
+    // Process each manifest (they are ordered from oldest to newest)
+    for (_label, manifest_value) in manifests {
+        let manifest_obj = match manifest_value.as_object() {
+            Some(obj) => obj,
+            None => continue,
+        };
+
+        // Get title for this manifest (to identify the source)
+        let source = manifest_obj
+            .get("title")
+            .and_then(|t| t.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        // Get claim generator
+        let claim_generator = manifest_obj
+            .get("claim_generator")
+            .and_then(|c| c.as_str())
+            .map(|s| s.to_string());
+
+        // Get actions from this manifest
+        if let Some(assertions) = manifest_obj.get("assertions") {
+            if let Some(assertions_arr) = assertions.as_array() {
+                for assertion in assertions_arr {
+                    if let Some(label) = assertion.get("label").and_then(|l| l.as_str()) {
+                        if label == "c2pa.actions.v2" {
+                            if let Some(data) = assertion.get("data") {
+                                if let Some(actions) = data.get("actions").and_then(|a| a.as_array()) {
+                                    for action in actions {
+                                        let action_name = action
+                                            .get("action")
+                                            .and_then(|a| a.as_str())
+                                            .unwrap_or("unknown")
+                                            .to_string();
+
+                                        // Get software agent
+                                        let software_agent = action
+                                            .get("softwareAgent")
+                                            .and_then(|s| {
+                                                if let Some(s_obj) = s.as_object() {
+                                                    s_obj.get("name").and_then(|n| n.as_str()).map(|s| s.to_string())
+                                                } else {
+                                                    s.as_str().map(|s| s.to_string())
+                                                }
+                                            });
+
+                                        // Get parameters as pretty string
+                                        let parameters = action.get("parameters").map(|p| {
+                                            let mut params = Vec::new();
+                                            if let Some(obj) = p.as_object() {
+                                                for (key, val) in obj {
+                                                    params.push(format!("{}: {}", key, val));
+                                                }
+                                            }
+                                            params.join(", ")
+                                        });
+
+                                        records.push(ModificationRecord {
+                                            step: records.len() + 1,
+                                            action: action_name,
+                                            software_agent: software_agent.or(claim_generator.clone()),
+                                            source: source.clone(),
+                                            parameters,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove duplicate "created" actions - keep only the first one (original creation)
+    let mut seen_created = false;
+    let final_records: Vec<ModificationRecord> = records
+        .into_iter()
+        .filter(|r| {
+            if r.action == "c2pa.created" {
+                if seen_created {
+                    return false;
+                }
+                seen_created = true;
+            }
+            true
+        })
+        .enumerate()
+        .map(|(i, mut r)| {
+            // Chronological order: oldest first
+            // Since records are collected oldest-to-newest, step = i + 1
+            r.step = i + 1;
+            r
+        })
+        .collect();
+
+    final_records
+}
+
+/// Extract validation checks from the manifest JSON
+fn extract_validation_checks(json_str: &str) -> Vec<ValidationCheck> {
+    let mut checks = Vec::new();
+
+    // Parse the JSON
+    let json: Value = match serde_json::from_str(json_str) {
+        Ok(v) => v,
+        Err(_) => return checks,
+    };
+
+    // Check top-level validation_status array
+    if let Some(val_status_arr) = json.get("validation_status").and_then(|v| v.as_array()) {
+        for item in val_status_arr {
+            if let Some(code) = item.get("code").and_then(|c| c.as_str()) {
+                checks.push(ValidationCheck {
+                    name: code.to_string(),
+                    status: "failed".to_string(),  // validation_status at top level means failure
+                    description: item.get("explanation")
+                        .and_then(|e| e.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                });
+            }
+        }
+    }
+
+    // Also check validation_results for success/failure
+    if let Some(val_results) = json.get("validation_results") {
+        if let Some(active_manifest) = val_results.get("activeManifest") {
+            // Check success
+            if let Some(success) = active_manifest.get("success") {
+                if let Some(success_arr) = success.as_array() {
+                    for item in success_arr {
+                        if let Some(code) = item.get("code").and_then(|c| c.as_str()) {
+                            checks.push(ValidationCheck {
+                                name: code.to_string(),
+                                status: "passed".to_string(),
+                                description: item.get("explanation")
+                                    .and_then(|e| e.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+            // Check failure
+            if let Some(failure) = active_manifest.get("failure") {
+                if let Some(failure_arr) = failure.as_array() {
+                    for item in failure_arr {
+                        if let Some(code) = item.get("code").and_then(|c| c.as_str()) {
+                            checks.push(ValidationCheck {
+                                name: code.to_string(),
+                                status: "failed".to_string(),
+                                description: item.get("explanation")
+                                    .and_then(|e| e.as_str())
+                                    .unwrap_or("")
+                                    .to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    checks
+}
+
 fn verify_image(reader: &Reader, verbose: bool) -> VerificationResult {
     let mut result = VerificationResult {
         is_valid: false,
@@ -296,11 +520,19 @@ fn verify_image(reader: &Reader, verbose: bool) -> VerificationResult {
         json_output: None,
         errors: Vec::new(),
         warnings: Vec::new(),
+        modification_history: Vec::new(),
+        validation_checks: Vec::new(),
     };
 
     // Get JSON representation
     let json_output = reader.json();
     result.json_output = Some(json_output.clone());
+
+    // Extract modification history
+    result.modification_history = extract_modification_history(&json_output);
+
+    // Extract validation checks from JSON
+    result.validation_checks = extract_validation_checks(&json_output);
 
     if verbose {
         info!("Manifest JSON:\n{}", json_output);
@@ -356,12 +588,12 @@ fn verify_image(reader: &Reader, verbose: bool) -> VerificationResult {
             let status_str = format!("{:?}", status);
             if status_str.contains("error") || status_str.contains("invalid") {
                 result.errors.push(status_str);
-            } else if status_str.contains("warning") {
+            } else if status_str.contains("warning") || status_str.contains("untrusted") {
                 result.warnings.push(status_str);
             }
         }
 
-        // Update validity based on errors
+        // Update validity based on errors only (not warnings or untrusted)
         if !result.errors.is_empty() {
             result.is_valid = false;
         }
@@ -370,7 +602,7 @@ fn verify_image(reader: &Reader, verbose: bool) -> VerificationResult {
     result
 }
 
-fn print_results(result: &VerificationResult, verbose: bool) {
+fn print_results(result: &VerificationResult, verbose: bool, show_history: bool) {
     println!("\n=== C2PA Verification Results ===\n");
 
     // Overall status
@@ -378,6 +610,21 @@ fn print_results(result: &VerificationResult, verbose: bool) {
         println!("✓ Verification Status: PASSED");
     } else {
         println!("✗ Verification Status: FAILED");
+    }
+
+    // Modification history
+    if show_history && !result.modification_history.is_empty() {
+        println!("\n--- Modification History ({} steps) ---", result.modification_history.len());
+        for record in &result.modification_history {
+            println!("  [Step {}] {}", record.step, record.action);
+            if let Some(ref sw) = record.software_agent {
+                println!("           Software: {}", sw);
+            }
+            if let Some(ref params) = record.parameters {
+                println!("           Params: {}", params);
+            }
+            println!("           Source: {}", record.source);
+        }
     }
 
     // Manifest presence
@@ -398,6 +645,27 @@ fn print_results(result: &VerificationResult, verbose: bool) {
         }
     } else {
         println!("✗ C2PA Manifest: Not Found");
+    }
+
+    // Validation Checks
+    if !result.validation_checks.is_empty() {
+        // Deduplicate by name
+        let mut seen = std::collections::HashSet::new();
+        let unique_checks: Vec<_> = result.validation_checks.iter()
+            .filter(|c| seen.insert(c.name.clone()))
+            .collect();
+
+        if !unique_checks.is_empty() {
+            println!("\n--- Validation Checks ---");
+            for check in unique_checks {
+                let status_icon = match check.status.as_str() {
+                    "passed" => "✓",
+                    "failed" => "✗",
+                    _ => "⚠",
+                };
+                println!("  {} {}: {}", status_icon, check.name, check.description);
+            }
+        }
     }
 
     // Ingredients
