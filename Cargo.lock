@@ -149,14 +149,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
-name = "app"
-version = "0.1.0"
-dependencies = [
- "fibonacci-lib",
- "pico-sdk",
-]
-
-[[package]]
 name = "app-c2pa"
 version = "0.1.0"
 dependencies = [
@@ -1453,13 +1445,6 @@ name = "fiat-crypto"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64cd1e32ddd350061ae6edb1b082d7c54915b5c672c389143b9a63403a109f24"
-
-[[package]]
-name = "fibonacci-lib"
-version = "0.1.0"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "flate2"
@@ -3550,16 +3535,6 @@ dependencies = [
  "rand_xorshift",
  "regex-syntax 0.8.5",
  "unarray",
-]
-
-[[package]]
-name = "prover"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "fibonacci-lib",
- "pico-sdk",
- "serde",
 ]
 
 [[package]]

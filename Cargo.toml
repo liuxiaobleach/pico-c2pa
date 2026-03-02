@@ -1,9 +1,6 @@
 [workspace]
 members = [
-    "lib",
-    "app",
     "app-c2pa",
-    "prover",
     "prover-c2pa",
     "verifier",
 ]
