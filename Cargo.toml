@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "app-c2pa",
+    "prover-c2pa",
     "verifier",
 ]
 resolver = "2"
