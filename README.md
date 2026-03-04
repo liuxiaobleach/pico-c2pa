@@ -55,6 +55,8 @@ C2PA 是一个开放标准，用于记录和验证数字内容的来源和真实
 | `app-c2pa` | 运行在 Pico ZKVM 上的 C2PA 验证应用 |
 | `prover-c2pa` | 生成 ZK Proof，验证 app-c2pa 的执行结果 |
 | `cropper` | C2PA 图片裁剪工具，验证原始图片后进行裁剪并重新签名 |
+| `c2pa-service` | 后端服务，提供 REST API 接收图片并返回 ZK Proof |
+| `c2pa-frontend` | 前端页面，上传图片并展示 Proof 结果 |
 
 ## 环境要求
 
@@ -357,7 +359,150 @@ brevis-c2pa-verifier/
 ├── cropper/               # C2PA 图片裁剪工具
 │   ├── Cargo.toml
 │   └── src/main.rs
+├── c2pa-service/          # 后端服务 (REST API)
+│   ├── Cargo.toml
+│   └── src/main.rs
+├── c2pa-frontend/         # 前端页面
+│   ├── index.html
+│   ├── styles.css
+│   └── app.js
 └── openspec/              # OpenSpec 配置
+```
+
+## 后端服务 (c2pa-service)
+
+c2pa-service 是一个基于 Axum 的后端服务，提供 REST API 接收图片并返回 ZK Proof。
+
+### 启动服务
+
+```bash
+# 启动服务（默认监听 0.0.0.0:8080）
+cargo run -p c2pa-service
+```
+
+### API 接口
+
+#### 1. 健康检查
+
+```bash
+POST /health
+```
+
+响应示例：
+```json
+{
+  "status": "healthy",
+  "service": "c2pa-proof-service"
+}
+```
+
+#### 2. 生成 Proof
+
+```bash
+POST /api/v1/proof
+Content-Type: multipart/form-data
+```
+
+请求参数：
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| image | file | 图片文件（JPEG, PNG 等） |
+
+响应示例：
+```json
+{
+  "success": true,
+  "error": null,
+  "proofGenerated": true,
+  "publicValues": {
+    "hashValid": true,
+    "computedHashPrefix": 123456789,
+    "isSigned": true,
+    "imageSize": 150000,
+    "actionCount": 3,
+    "actionsValid": true
+  }
+}
+```
+
+### 使用示例
+
+```bash
+# 使用 curl 调用 API
+curl -X POST http://localhost:8080/api/v1/proof \
+  -F "image=@./verifier/src/DSC00050.JPG"
+
+# 健康检查
+curl -X POST http://localhost:8080/health
+```
+
+### Public Values 字段说明
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `hashValid` | bool | 图片数据哈希是否验证通过 |
+| `computedHashPrefix` | u64 | 计算得到的哈希前缀 |
+| `isSigned` | bool | 图片是否有 C2PA 签名 |
+| `imageSize` | u32 | 图片大小（字节） |
+| `actionCount` | u8 | 修改历史记录数量 |
+| `actionsValid` | bool | 修改历史是否有效 |
+
+## 前端页面 (c2pa-frontend)
+
+c2pa-frontend 是一个简单的前端页面，可以上传图片到后端服务并显示 Proof 结果。
+
+### 启动步骤
+
+1. 首先启动后端服务：
+
+```bash
+cargo run -p c2pa-service
+```
+
+2. 然后用浏览器打开前端页面：
+
+```bash
+# 方式一：直接用浏览器打开 HTML 文件
+open c2pa-frontend/index.html
+
+# 方式二：使用简单的 HTTP 服务器
+cd c2pa-frontend
+python3 -m http.server 8081
+# 然后访问 http://localhost:8081
+```
+
+### 功能特点
+
+- 拖拽或点击上传图片
+- 图片预览
+- 调用后端 API 生成 Proof
+- 直观展示验证结果
+
+### 界面预览
+
+```
+┌─────────────────────────────────────────────┐
+│           C2PA Proof Generator              │
+│    基于零知识证明的图片 provenance 验证       │
+├─────────────────────────────────────────────┤
+│                                              │
+│    ┌─────────────────────────────────┐      │
+│    │         拖拽图片到这里           │      │
+│    │    或点击选择                    │      │
+│    └─────────────────────────────────┘      │
+│                                              │
+│            [ 生成 Proof ]                    │
+│                                              │
+│    ┌─────────────────────────────────┐      │
+│    │  ✓ Proof 生成成功               │      │
+│    │  ─────────────────────────────  │      │
+│    │  Public Values:                 │      │
+│    │  • Hash Valid: 是              │      │
+│    │  • Is Signed: 是               │      │
+│    │  • Image Size: 150 KB          │      │
+│    │  • Action Count: 3             │      │
+│    └─────────────────────────────────┘      │
+└─────────────────────────────────────────────┘
 ```
 
 ## 运行测试

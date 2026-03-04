@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C2PA Proof Generator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <nav class="nav-links">
+                <a href="index.html">上传图片</a> | <a href="query.html">查询任务</a>
+            </nav>
+            <h1>C2PA Proof Generator</h1>
+            <p class="subtitle">基于零知识证明的图片 provenance 验证</p>
+        </header>
+
+        <main>
+            <div class="upload-section">
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-icon">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                    </div>
+                    <p class="drop-text">拖拽图片到这里，或点击选择</p>
+                    <p class="drop-hint">支持 JPEG, PNG, WebP, GIF, AVIF 格式</p>
+                    <input type="file" id="fileInput" accept="image/*" hidden>
+                </div>
+
+                <div class="preview-section" id="previewSection" style="display: none;">
+                    <h3>已选择图片</h3>
+                    <img id="imagePreview" alt="Preview">
+                    <p id="fileName" class="file-name"></p>
+                    <button class="btn btn-secondary" id="clearBtn">清除</button>
+                </div>
+            </div>
+
+            <div class="action-section">
+                <button class="btn btn-primary" id="uploadBtn" disabled>
+                    <span class="btn-text">生成 Proof</span>
+                    <span class="btn-loading" style="display: none;">
+                        <svg class="spinner" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4 31.4"/>
+                        </svg>
+                        处理中...
+                    </span>
+                </button>
+            </div>
+
+            <div class="result-section" id="resultSection" style="display: none;">
+                <h2>验证结果</h2>
+
+                <div class="result-card" id="resultCard">
+                    <div class="result-status" id="resultStatus">
+                        <span class="status-icon"></span>
+                        <span class="status-text"></span>
+                    </div>
+
+                    <div class="result-details" id="resultDetails">
+                        <h3>Public Values</h3>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <span class="detail-label">Hash Valid</span>
+                                <span class="detail-value" id="hashValid">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Computed Hash Prefix</span>
+                                <span class="detail-value" id="computedHashPrefix">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Is Signed</span>
+                                <span class="detail-value" id="isSigned">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Image Size</span>
+                                <span class="detail-value" id="imageSize">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Action Count</span>
+                                <span class="detail-value" id="actionCount">-</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Actions Valid</span>
+                                <span class="detail-value" id="actionsValid">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="result-error" id="resultError" style="display: none;">
+                        <h3>错误信息</h3>
+                        <p id="errorMessage"></p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Powered by <a href="https://c2pa.org/" target="_blank">C2PA</a> + <a href="https://brevis.network/" target="_blank">Pico ZKVM</a></p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

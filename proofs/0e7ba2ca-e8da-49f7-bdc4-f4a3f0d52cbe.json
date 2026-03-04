@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "error": null,
+  "proofGenerated": true,
+  "publicValues": {
+    "hashValid": true,
+    "computedHashPrefix": 494392826212530856,
+    "isSigned": true,
+    "imageSize": 472721,
+    "actionCount": 3,
+    "actionsValid": true
+  }
+}

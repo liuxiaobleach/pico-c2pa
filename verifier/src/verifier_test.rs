@@ -7,9 +7,7 @@ use clap::Parser;
 /// Test base64 decoding with standard encoding
 #[test]
 fn test_decode_base64_standard() {
-    // "Hello" in base64是的
-
-
+    // "Hello" in bas
     let result = decode_base64("SGVsbG8=");
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), b"Hello");

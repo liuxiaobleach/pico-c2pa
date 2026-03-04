@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C2PA Proof 查询</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f9fafb;
+            color: #111827;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .search-box {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-box label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            box-sizing: border-box;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background-color: #4f46e5;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #4338ca;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-download {
+            background-color: #10b981;
+            color: white;
+            margin-top: 1rem;
+        }
+
+        .btn-download:hover {
+            background-color: #059669;
+        }
+
+        .result-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: none;
+        }
+
+        .result-card.show {
+            display: block;
+        }
+
+        .result-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            font-size: 1.125rem;
+        }
+
+        .result-status.completed {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .result-status.failed, .result-status.notfound {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .result-status.processing {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .detail-item {
+            background-color: #f9fafb;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+        }
+
+        .detail-label {
+            display: block;
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .detail-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .detail-value.success {
+            color: #10b981;
+        }
+
+        .detail-value.error {
+            color: #ef4444;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 1.5rem 0 1rem;
+            color: #374151;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 0.5rem;
+        }
+
+        .error-message {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        footer {
+            margin-top: auto;
+            padding-top: 2rem;
+            color: #9ca3af;
+            font-size: 0.875rem;
+        }
+
+        footer a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        .nav-links {
+            margin-bottom: 2rem;
+        }
+
+        .nav-links a {
+            color: #4f46e5;
+            text-decoration: none;
+            margin: 0 0.5rem;
+        }
+
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-links">
+            <a href="index.html">上传图片</a> | <a href="query.html">查询任务</a>
+        </div>
+
+        <h1>C2PA Proof 查询</h1>
+        <p class="subtitle">通过 Task ID 查询证明生成状态</p>
+
+        <div class="search-box">
+            <label for="taskIdInput">请输入 Task ID</label>
+            <input type="text" id="taskIdInput" placeholder="例如: 550e8400-e29b-41d4-a716-446655440000">
+            <button class="btn btn-primary" id="queryBtn">查询</button>
+        </div>
+
+        <div class="result-card" id="resultCard">
+            <div class="result-status" id="resultStatus">
+                <span class="status-text"></span>
+            </div>
+
+            <div id="resultContent"></div>
+
+            <div class="error-message" id="errorMessage" style="display: none;"></div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Powered by <a href="https://c2pa.org/" target="_blank">C2PA</a> + <a href="https://brevis.network/" target="_blank">Pico ZKVM</a></p>
+    </footer>
+
+    <script src="query.js"></script>
+</body>
+</html>

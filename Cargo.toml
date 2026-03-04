@@ -3,6 +3,8 @@ members = [
     "app-c2pa",
     "prover-c2pa",
     "verifier",
+    "cropper",
+    "c2pa-service",
 ]
 resolver = "2"
 
