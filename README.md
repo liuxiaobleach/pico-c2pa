@@ -1,30 +1,30 @@
 # brevis-c2pa-verifier
 
-基于 Pico ZKVM 的 C2PA 图片签名验证零知识证明项目。
+A Zero Knowledge Proof project for C2PA image signature verification based on Pico ZKVM.
 
-## 项目简介
+## Project Overview
 
-本项目实现了一个基于零知识证明的 C2PA（Coalition for Content Provenance and Authenticity）图片签名验证系统。
+This project implements a C2PA (Coalition for Content Provenance and Authenticity) image signature verification system using Zero Knowledge Proofs.
 
-### 什么是 C2PA？
+### What is C2PA?
 
-C2PA 是一个开放标准，用于记录和验证数字内容的来源和真实性。它允许：
+C2PA is an open standard for recording and verifying the origin and authenticity of digital content. It enables:
 
-- **来源追踪**：确定图片的创建者/设备
-- **完整性验证**：检测图片是否被篡改
-- **真实性证明**：验证内容是否由声称的来源创建
+- **Provenance Tracking**: Determine the creator/device of an image
+- **Integrity Verification**: Detect if an image has been tampered with
+- **Authenticity Proof**: Verify that content was created by the claimed source
 
-### 什么是零知识证明？
+### What is Zero Knowledge Proof?
 
-零知识证明（ZKP）允许一方（证明者）向另一方（验证者）证明某个陈述是真实的，而无需透露任何额外信息。
+Zero Knowledge Proof (ZKP) allows one party (the prover) to prove to another party (the verifier) that a statement is true without revealing any additional information.
 
-在本项目中：
-- **Private（私密）**：原始图片数据
-- **Public（公开）**：验证结果
+In this project:
+- **Private**: The original image data
+- **Public**: The verification result
 
-这样可以在不暴露图片内容的情况下，证明"这张图片的 C2PA 签名验证结果"。
+This allows proving "the C2PA signature verification result for this image" without exposing the image content.
 
-## 系统架构
+## System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -33,119 +33,119 @@ C2PA 是一个开放标准，用于记录和验证数字内容的来源和真实
 │                                                                  │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    │
 │  │    verifier   │    │   app-c2pa   │    │ prover-c2pa  │    │
-│  │  (主机工具)   │    │ (Pico ZKVM)  │    │  (生成 Proof) │    │
+│  │ (Host Tool)  │    │ (Pico ZKVM)  │    │ (Generate Proof)│ │
 │  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘    │
 │         │                    │                    │              │
 │         ▼                    ▼                    ▼              │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
-│  │  C2PA 签名   │    │  ELF 二进制  │    │  ZK Proof   │      │
-│  │  验证工具    │    │  (RISC-V)    │    │  + Public   │      │
+│  │ C2PA Signature│    │  ELF Binary │    │  ZK Proof   │      │
+│  │ Verification  │    │  (RISC-V)   │    │ + Public     │      │
 │  └──────────────┘    └──────────────┘    └──────────────┘      │
 │                                                                  │
-│  方式一                    方式二（ZK 隐私保护）                  │
+│  Method 1            Method 2 (ZK Privacy Protection)           │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 模块说明
+### Module Description
 
-| 模块 | 说明 |
-|------|------|
-| `verifier` | 主机上的 C2PA 验证工具，可直接验证图片的 C2PA 签名 |
-| `app-c2pa` | 运行在 Pico ZKVM 上的 C2PA 验证应用 |
-| `prover-c2pa` | 生成 ZK Proof，验证 app-c2pa 的执行结果 |
-| `cropper` | C2PA 图片裁剪工具，验证原始图片后进行裁剪并重新签名 |
-| `c2pa-service` | 后端服务，提供 REST API 接收图片并返回 ZK Proof |
-| `c2pa-frontend` | 前端页面，上传图片并展示 Proof 结果 |
+| Module | Description |
+|--------|-------------|
+| `verifier` | C2PA verification tool running on host, directly verifies image C2PA signatures |
+| `app-c2pa` | C2PA verification app running on Pico ZKVM |
+| `prover-c2pa` | Generates ZK Proof, verifies app-c2pa execution results |
+| `cropper` | C2PA image cropping tool, verifies original image before cropping and re-signing |
+| `c2pa-service | Backend service, provides REST API to receive images and return ZK Proofs |
+| `c2pa-frontend` | Frontend page, uploads images and displays Proof results |
 
-## 环境要求
+## Requirements
 
 - Rust 2024 edition
-- Pico SDK (通过 `cargo pico` 工具链)
-- Nightly Rust 工具链
+- Pico SDK (via `cargo pico` toolchain)
+- Nightly Rust toolchain
 
-## 快速开始
+## Quick Start
 
-### 1. 安装 Pico 工具链
+### 1. Install Pico Toolchain
 
 ```bash
 cargo install cargo-pico
 ```
 
-### 2. 克隆项目
+### 2. Clone Project
 
 ```bash
-git clone <你的仓库URL>
+git clone <your-repo-url>
 cd brevis-c2pa-verifier
 ```
 
-### 3. 构建项目
+### 3. Build Project
 
 ```bash
-# 构建所有包
+# Build all packages
 cargo build
 ```
 
-## 使用方法
+## Usage
 
-### 方式一：使用 verifier（主机工具）
+### Method 1: Using verifier (Host Tool)
 
-直接验证图片的 C2PA 签名，无需零知识证明。
+Directly verify image C2PA signatures without zero knowledge proofs.
 
 ```bash
-# 从文件验证
-cargo run -p verifier -- --file <图片路径>
+# Verify from file
+cargo run -p verifier -- --file <image-path>
 
-# 示例
+# Example
 cargo run -p verifier -- --file ./verifier/src/DSC00050.JPG
 
-# 详细输出（显示完整 JSON）
-cargo run -p verifier -- --file <图片路径> --verbose
+# Verbose output (show full JSON)
+cargo run -p verifier -- --file <image-path> --verbose
 
-# 从 base64 验证
-cargo run -p verifier -- --base64 "<base64字符串>"
+# Verify from base64
+cargo run -p verifier -- --base64 "<base64-string>"
 ```
 
-### 方式二：使用 Pico ZKVM + Prover（零知识证明）
+### Method 2: Using Pico ZKVM + Prover (Zero Knowledge Proof)
 
-通过零知识证明验证 C2PA 签名，保护隐私。
+Verify C2PA signatures via zero knowledge proofs for privacy protection.
 
-#### 步骤 1: 编译 app-c2pa
+#### Step 1: Build app-c2pa
 
 ```bash
 cd app-c2pa
 cargo pico build
 ```
 
-这会生成 ELF 文件：`app-c2pa/elf/riscv32im-pico-zkvm-elf`
+This generates the ELF file: `app-c2pa/elf/riscv32im-pico-zkvm-elf`
 
-#### 步骤 2: 运行 prover 生成 Proof
+#### Step 2: Run prover to generate Proof
 
 ```bash
 cargo run -p prover-c2pa
 ```
 
-这会在 Pico ZKVM 上执行 app-c2pa 并生成零知识证明。
+This executes app-c2pa on Pico ZKVM and generates a zero knowledge proof.
 
-## 命令参考
+## Command Reference
 
-### verifier 命令
+### verifier Command
 
 ```bash
 cargo run -p verifier -- [OPTIONS]
 
 Options:
-  -f, --file <FILE>           图片文件路径
-      --base64 <BASE64>       Base64 编码的图片数据
-  -s, --settings <FILE>       信任设置文件（可选）
-  -t, --trust-anchors <FILE>  信任锚点 PEM 文件（可选）
-      --skip-trust            跳过证书信任验证（推荐）
-      --history               显示修改历史（actions）
-  -v, --verbose               详细输出模式
-  -h, --help                  帮助信息
+  -f, --file <FILE>           Image file path
+      --base64 <BASE64>       Base64 encoded image data
+  -s, --settings <FILE>      Trust settings file (optional)
+  -t, --trust-anchors <FILE> Trust anchor PEM file (optional)
+      --skip-trust           Skip certificate trust verification (recommended)
+      --history              Display modification history (actions)
+  -v, --verbose              Verbose output mode
+  -h, --help                 Help information
 ```
 
-### cropper 命令
+### cropper Command
 
 ```bash
 cd cropper
@@ -153,35 +153,35 @@ cargo build
 ./target/debug/cropper [OPTIONS]
 
 Options:
-  -i, --input <FILE>          输入图片文件路径（必需）
-  -o, --output <FILE>         输出图片文件路径（必需）
-      --x <INT>               裁剪区域 x 坐标（默认 0）
-      --y <INT>               裁剪区域 y 坐标（默认 0）
-      --width <INT>           裁剪区域宽度（必需）
-      --height <INT>          裁剪区域高度（必需）
-      --skip-verify           跳过原始图片验证
-  -v, --verbose               详细输出模式
+  -i, --input <FILE>        Input image file path (required)
+  -o, --output <FILE>       Output image file path (required)
+      --x <INT>              Crop region x coordinate (default 0)
+      --y <INT>              Crop region y coordinate (default 0)
+      --width <INT>          Crop region width (required)
+      --height <INT>         Crop region height (required)
+      --skip-verify          Skip original image verification
+  -v, --verbose              Verbose output mode
 ```
 
-### app-c2pa 编译
+### app-c2pa Build
 
 ```bash
 cd app-c2pa
 cargo pico build
 
-# 指定输出目录
-cargo pico build --output-directory <目录>
+# Specify output directory
+cargo pico build --output-directory <directory>
 ```
 
-### prover-c2pa 运行
+### prover-c2pa Run
 
 ```bash
 cargo run -p prover-c2pa
 ```
 
-## 输出示例
+## Output Examples
 
-### verifier 输出（有 C2PA 签名）
+### verifier Output (with C2PA signature)
 
 ```
 === C2PA Verification Results ===
@@ -204,7 +204,7 @@ cargo run -p prover-c2pa
 ================================
 ```
 
-### verifier --history 输出（显示修改历史）
+### verifier --history Output (Modification History)
 
 ```
 --- Modification History (3 steps) ---
@@ -221,7 +221,7 @@ cargo run -p prover-c2pa
            Source: cropped.jpg
 ```
 
-### verifier --verbose 输出（完整 JSON）
+### verifier --verbose Output (Full JSON)
 
 ```json
 {
@@ -241,7 +241,7 @@ cargo run -p prover-c2pa
 }
 ```
 
-### prover-c2pa 输出
+### prover-c2pa Output
 
 ```
 Input: image_hash=1311768467294899695, expected_hash=1311768467294899695, size=150000, is_signed=true
@@ -260,69 +260,69 @@ hash_valid: false (computed in ZKVM)
 Verification PASSED!
 ```
 
-## C2PA Manifest 详解
+## C2PA Manifest Details
 
-当 verifier 成功验证一张图片时，会显示以下信息：
+When verifier successfully verifies an image, it displays the following information:
 
-| 字段 | 说明 |
-|------|------|
-| **Label** | Manifest 的唯一标识符（UUID） |
-| **Claim Generator** | 创建此 manifest 的软件/设备（如 SONY_CAMERA） |
-| **Title** | 文件名 |
-| **format** | 图片格式（image/jpeg） |
+| Field | Description |
+|-------|-------------|
+| **Label** | Unique identifier for the manifest (UUID) |
+| **Claim Generator** | Software/device that created this manifest (e.g., SONY_CAMERA) |
+| **Title** | File name |
+| **format** | Image format (image/jpeg) |
 
-### 验证状态（Validation Checks）
+### Validation Status (Validation Checks)
 
-| 状态 | 说明 |
-|------|------|
-| ✅ timeStamp.validated | 时间戳消息摘要匹配 |
-| ✅ timeStamp.trusted | 时间戳证书受信任 |
-| ✅ claimSignature.validated | 声明签名有效 |
-| ✅ claimSignature.insideValidity | 签名在有效期内 |
-| ✅ assertion.dataHash.match | **图片内容没有被修改** |
-| ⚠️ signingCredential.untrusted | 签名证书不在信任列表中 |
+| Status | Description |
+|--------|-------------|
+| ✅ timeStamp.validated | Timestamp message digest matched |
+| ✅ timeStamp.trusted | Timestamp certificate trusted |
+| ✅ claimSignature.validated | Claim signature valid |
+| ✅ claimSignature.insideValidity | Signature within validity period |
+| ✅ assertion.dataHash.match | **Image content not modified** |
+| ⚠️ signingCredential.untrusted | Signing certificate not in trust list |
 
-### 验证说明
+### Validation Explanation
 
-**为什么可以忽略 `signingCredential.untrusted`？**
+**Why can we ignore `signingCredential.untrusted`?**
 
-这是两个独立的验证：
-1. **签名有效** - 用私钥签名，能用公钥解开
-2. **证书信任** - 证书是否在 Adobe AATL 信任列表中
+These are two independent verifications:
+1. **Signature valid** - Signed with private key, can be decrypted with public key
+2. **Certificate trust** - Whether certificate is in Adobe AATF trust list
 
-即使不知道签名者是否可信（证书不受信任），我们仍然可以通过以下验证保证图片真实性：
-- `assertion.dataHash.match` = 图片内容没被修改 ✅
-- `claimSignature.validated` = 签名有效 ✅
+Even without knowing if the signer is trustworthy (certificate untrusted), we can still guarantee image authenticity through:
+- `assertion.dataHash.match` = Image content not modified ✅
+- `claimSignature.validated` = Signature valid ✅
 
-### 修改历史（Actions）
+### Modification History (Actions)
 
-C2PA 会记录图片的所有操作历史：
+C2PA records all operation history for an image:
 
-| Action | 说明 |
-|--------|------|
-| `c2pa.created` | 首次创建（相机拍摄） |
-| `c2pa.opened` | 打开图片 |
-| `c2pa.cropped` | 裁剪操作 |
-| `c2pa.edited` | 编辑操作 |
-| `c2pa.filtered` | 滤镜/效果 |
+| Action | Description |
+|--------|-------------|
+| `c2pa.created` | First creation (camera capture) |
+| `c2pa.opened` | Image opened |
+| `c2pa.cropped` | Crop operation |
+| `c2pa.edited` | Edit operation |
+| `c2pa.filtered` | Filter/effect applied |
 
-## Public Value 说明
+## Public Value Explanation
 
-**Public Value（公开值）** 是在 ZKVM 中执行程序后，向外部公开的部分证明数据。
+**Public Values** are the part of the proof data that is revealed to the outside after executing the program in the ZKVM.
 
-### 在本项目中的意义
+### Meaning in This Project
 
 ```
 ┌─────────────────────────────────────────────┐
-│              ZKVM 执行 (app-c2pa)            │
+│           ZKVM Execution (app-c2pa)         │
 │                                             │
-│  输入 (Private - 不公开):                    │
+│  Input (Private - Not公开):                    │
 │    - image_hash                             │
 │    - expected_hash                          │
 │    - image_size                             │
 │    - is_signed                              │
 │                                             │
-│  输出 (Public Values - 公开):               │
+│  Output (Public Values - 公开):               │
 │    ✓ hash_valid                             │
 │    ✓ computed_hash                          │
 │    ✓ image_hash                             │
@@ -332,63 +332,65 @@ C2PA 会记录图片的所有操作历史：
 └─────────────────────────────────────────────┘
 ```
 
-### 特点
+### Characteristics
 
-1. **公开可见** - 任何人都可以看到这些值
-2. **可验证** - 无需知道原始输入就能验证计算正确性
-3. **隐私保护** - 原始输入（图片数据）在 ZKVM 内部保持私密
+1. **Publicly Visible** - Anyone can see these values
+2. **Verifiable** - Can verify computation correctness without knowing original inputs
+3. **Privacy Protected** - Original inputs (image data) remain private inside ZKVM
 
-## 项目结构
+## Project Structure
 
 ```
 brevis-c2pa-verifier/
-├── Cargo.toml              # Workspace 配置
-├── app-c2pa/              # C2PA 验证 app (Pico ZKVM)
+├── Cargo.toml              # Workspace configuration
+├── app-c2pa/              # C2PA verification app (Pico ZKVM)
 │   ├── Cargo.toml
 │   ├── src/main.rs
-│   └── elf/               # 编译生成的 ELF
-├── prover-c2pa/           # C2PA prover
+│   └── elf/               # Compiled ELF
+├── prover-c2pa/            # C2PA prover
 │   ├── Cargo.toml
 │   └── src/main.rs
-├── verifier/               # C2PA 验证工具
+├── verifier/               # C2PA verification tool
 │   ├── Cargo.toml
 │   └── src/
 │       ├── main.rs
 │       ├── verifier_test.rs
-│       └── DSC00050.JPG   # 测试图片
-├── cropper/               # C2PA 图片裁剪工具
+│       └── DSC00050.JPG   # Test image
+├── cropper/                # C2PA image cropping tool
 │   ├── Cargo.toml
 │   └── src/main.rs
-├── c2pa-service/          # 后端服务 (REST API)
+├── c2pa-service/          # Backend service (REST API)
 │   ├── Cargo.toml
 │   └── src/main.rs
-├── c2pa-frontend/         # 前端页面
+├── c2pa-frontend/         # Frontend page
 │   ├── index.html
 │   ├── styles.css
-│   └── app.js
-└── openspec/              # OpenSpec 配置
+│   ├── app.js
+│   ├── query.html
+│   └── query.js
+└── openspec/              # OpenSpec configuration
 ```
 
-## 后端服务 (c2pa-service)
+## Backend Service (c2pa-service)
 
-c2pa-service 是一个基于 Axum 的后端服务，提供 REST API 接收图片并返回 ZK Proof。
+c2pa-service is an Axum-based backend service that provides a REST API to receive images and return ZK Proofs.
 
-### 启动服务
+### Start Service
 
 ```bash
-# 启动服务（默认监听 0.0.0.0:8080）
+# Start service (default listening on 0.0.0.0:8080)
 cargo run -p c2pa-service
 ```
 
-### API 接口
+### API Endpoints
 
-#### 1. 健康检查
+#### 1. Health Check
 
 ```bash
 POST /health
 ```
 
-响应示例：
+Response Example:
 ```json
 {
   "status": "healthy",
@@ -396,19 +398,19 @@ POST /health
 }
 ```
 
-#### 2. 生成 Proof
+#### 2. Generate Proof
 
 ```bash
 POST /api/v1/proof
 Content-Type: multipart/form-data
 ```
 
-请求参数：
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| image | file | 图片文件（JPEG, PNG 等） |
+Request Parameters:
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| image | file | Image file (JPEG, PNG, etc.) |
 
-响应示例：
+Response Example:
 ```json
 {
   "success": true,
@@ -425,106 +427,137 @@ Content-Type: multipart/form-data
 }
 ```
 
-### 使用示例
+#### 3. Query Task Status
 
 ```bash
-# 使用 curl 调用 API
+GET /api/v1/proof/:task_id
+```
+
+#### 4. Verify Proof
+
+```bash
+GET /api/v1/verify/:task_id
+```
+
+#### 5. Download Proof
+
+```bash
+GET /proofs/:task_id.json
+```
+
+### Usage Examples
+
+```bash
+# Upload image via curl
 curl -X POST http://localhost:8080/api/v1/proof \
   -F "image=@./verifier/src/DSC00050.JPG"
 
-# 健康检查
+# Health check
 curl -X POST http://localhost:8080/health
+
+# Query task status
+curl http://localhost:8080/api/v1/proof/<task_id>
+
+# Verify proof
+curl http://localhost:8080/api/v1/verify/<task_id>
 ```
 
-### Public Values 字段说明
+### Public Values Field Description
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `hashValid` | bool | 图片数据哈希是否验证通过 |
-| `computedHashPrefix` | u64 | 计算得到的哈希前缀 |
-| `isSigned` | bool | 图片是否有 C2PA 签名 |
-| `imageSize` | u32 | 图片大小（字节） |
-| `actionCount` | u8 | 修改历史记录数量 |
-| `actionsValid` | bool | 修改历史是否有效 |
+| Field | Type | Description |
+|-------|------|-------------|
+| `hashValid` | bool | Whether image data hash verification passed |
+| `computedHashPrefix` | u64 | Computed hash prefix |
+| `isSigned` | bool | Whether image has C2PA signature |
+| `imageSize` | u32 | Image size (bytes) |
+| `actionCount` | u8 | Number of modification history records |
+| `actionsValid` | bool | Whether modification history is valid |
 
-## 前端页面 (c2pa-frontend)
+## Frontend Page (c2pa-frontend)
 
-c2pa-frontend 是一个简单的前端页面，可以上传图片到后端服务并显示 Proof 结果。
+c2pa-frontend is a simple frontend page that can upload images to the backend service and display Proof results.
 
-### 启动步骤
+### Startup Steps
 
-1. 首先启动后端服务：
+1. First start the backend service:
 
 ```bash
 cargo run -p c2pa-service
 ```
 
-2. 然后用浏览器打开前端页面：
+2. Then open the frontend page in your browser:
 
 ```bash
-# 方式一：直接用浏览器打开 HTML 文件
+# Method 1: Open HTML file directly in browser
 open c2pa-frontend/index.html
 
-# 方式二：使用简单的 HTTP 服务器
+# Method 2: Use a simple HTTP server
 cd c2pa-frontend
 python3 -m http.server 8081
-# 然后访问 http://localhost:8081
+# Then visit http://localhost:8081
 ```
 
-### 功能特点
+### Features
 
-- 拖拽或点击上传图片
-- 图片预览
-- 调用后端 API 生成 Proof
-- 直观展示验证结果
+- Drag & drop or click to upload images
+- Image preview
+- Call backend API to generate Proof
+- Intuitive display of verification results
 
-### 界面预览
+### UI Preview
 
 ```
 ┌─────────────────────────────────────────────┐
 │           C2PA Proof Generator              │
-│    基于零知识证明的图片 provenance 验证       │
+│    Zero-Knowledge Proof Based Image         │
+│         Provenance Verification             │
 ├─────────────────────────────────────────────┤
 │                                              │
 │    ┌─────────────────────────────────┐      │
-│    │         拖拽图片到这里           │      │
-│    │    或点击选择                    │      │
+│    │      Drop image here            │      │
+│    │    or click to select          │      │
 │    └─────────────────────────────────┘      │
 │                                              │
-│            [ 生成 Proof ]                    │
+│            [ Generate Proof ]                │
 │                                              │
 │    ┌─────────────────────────────────┐      │
-│    │  ✓ Proof 生成成功               │      │
+│    │  ✓ Proof Generated Successfully │      │
 │    │  ─────────────────────────────  │      │
 │    │  Public Values:                 │      │
-│    │  • Hash Valid: 是              │      │
-│    │  • Is Signed: 是               │      │
+│    │  • Hash Valid: Yes             │      │
+│    │  • Is Signed: Yes              │      │
 │    │  • Image Size: 150 KB          │      │
 │    │  • Action Count: 3             │      │
 │    └─────────────────────────────────┘      │
 └─────────────────────────────────────────────┘
 ```
 
-## 运行测试
+### Query Page
+
+The query page allows you to query proof status by Task ID and download proofs.
+
+Access: `http://localhost:8081/query.html`
+
+## Running Tests
 
 ```bash
-# 运行 verifier 测试
+# Run verifier tests
 cargo test -p verifier
 ```
 
-## 注意事项
+## Notes
 
-1. 没有 C2PA manifest 的图片会被标记为 "PASSED" 但会显示警告
-2. 完整的签名验证需要提供信任锚点文件
-3. 支持的图片格式：JPEG, PNG, WebP, GIF, AVIF
+1. Images without C2PA manifest will be marked as "PASSED" but will show warnings
+2. Full signature verification requires providing trust anchor files
+3. Supported image formats: JPEG, PNG, WebP, GIF, AVIF
 
-## 相关链接
+## Related Links
 
-- [C2PA 官方网站](https://c2pa.org/)
-- [Pico SDK 文档](https://docs.brevis.network/)
+- [C2PA Official Website](https://c2pa.org/)
+- [Pico SDK Documentation](https://docs.brevis.network/)
 - [C2PA Rust SDK](https://github.com/contentauth/c2pa-rust)
-- [Pico ZKVM 快速开始](https://pico-docs.brevis.network/getting-started/quick-start)
+- [Pico ZKVM Quick Start](https://pico-docs.brevis.network/getting-started/quick-start)
 
-## 许可证
+## License
 
 MIT License

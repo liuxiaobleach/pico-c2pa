@@ -1,0 +1,19 @@
+{
+  "public_input": {
+    "data_hash_prefix": 5176906325046694716,
+    "expected_hash_prefix": 5176906325046694716,
+    "image_size": 472721,
+    "is_signed": true,
+    "action_count": 3,
+    "expected_actions_hash_prefix": 1464028424418503596
+  },
+  "public_values": {
+    "hash_valid": true,
+    "computed_hash_prefix": 494392826212530856,
+    "is_signed": true,
+    "image_size": 472721,
+    "action_count": 3,
+    "actions_valid": true
+  },
+  "proof_generated": true
+}
