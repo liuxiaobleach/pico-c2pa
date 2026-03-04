@@ -1,147 +1,147 @@
-# brevis-c2pa-verifier 项目记忆
+# brevis-c2pa-verifier Project Memory
 
-## 项目概述
+## Project Overview
 
-这是一个基于 **Pico ZKVM** 的 **C2PA（Coalition for Content Provenance and Authenticity）图片签名验证零知识证明项目**。
+This is a **C2PA (Coalition for Content Provenance and Authenticity) image signature verification Zero Knowledge Proof project** based on **Pico ZKVM**.
 
-- **目的**: 实现隐私保护的 C2PA 图片签名验证（通过零知识证明）
-- **语言**: Rust 2024 edition (nightly)
-- **核心框架**: Pico ZKVM, c2pa-rust
+- **Purpose**: Implement privacy-preserving C2PA image signature verification (via Zero Knowledge Proofs)
+- **Language**: Rust 2024 edition (nightly)
+- **Core Framework**: Pico ZKVM, c2pa-rust
 
-## 项目结构
+## Project Structure
 
 ```
 /Users/liuxiao/code/tour/Fibonacci/
-├── Cargo.toml                  # Workspace 配置
+├── Cargo.toml                  # Workspace configuration
 ├── rust-toolchain              # nightly-2025-08-04
-├── README.md                   # 项目文档
-├── verifier/                   # 主机 C2PA 验证工具
+├── README.md                   # Project documentation
+├── verifier/                   # Host C2PA verification tool
 │   ├── Cargo.toml
 │   ├── src/main.rs
 │   ├── src/verifier_test.rs
-│   └── src/DSC00050.JPG        # 测试图片（索尼相机拍摄）
-├── app-c2pa/                   # Pico ZKVM 应用
+│   └── src/DSC00050.JPG        # Test image (taken by Sony camera)
+├── app-c2pa/                   # Pico ZKVM app
 │   ├── Cargo.toml
 │   ├── src/main.rs
-│   └── elf/riscv32im-pico-zkvm-elf  # 编译后的 ELF
-├── prover-c2pa/                # ZK Proof 生成器
+│   └── elf/riscv32im-pico-zkvm-elf  # Compiled ELF
+├── prover-c2pa/                # ZK Proof generator
 │   ├── Cargo.toml
 │   └── src/main.rs
-├── cropper/                    # C2PA 图片裁剪工具
+├── cropper/                    # C2PA image cropping tool
 │   ├── Cargo.toml
 │   ├── src/main.rs
-│   └── sigcert.p12            # 设备证书（如果有）
-└── openspec/                   # OpenSpec 配置
+│   └── sigcert.p12            # Device certificate (if available)
+└── openspec/                   # OpenSpec configuration
 ```
 
-## 核心模块
+## Core Modules
 
-### 1. verifier (主机验证工具)
-- 直接验证图片的 C2PA 签名
-- 支持文件输入和 base64 输入
-- 使用 `c2pa-rust` 库 (v0.76)
-- 支持格式: JPEG, PNG, WebP, GIF, AVIF
-- **新功能**: `--history` 显示修改历史, `--skip-trust` 跳过证书信任验证
+### 1. verifier (Host Verification Tool)
+- Directly verifies image C2PA signatures
+- Supports file input and base64 input
+- Uses `c2pa-rust` library (v0.76)
+- Supported formats: JPEG, PNG, WebP, GIF, AVIF
+- **New Features**: `--history` displays modification history, `--skip-trust` skips certificate trust verification
 
-### 2. app-c2pa (Pico ZKVM 应用)
-- 运行在 RISC-V 架构 (riscv32im-pico-zkvm-elf)
-- 执行简化的 C2PA 哈希验证
-- 输入: image_hash, expected_hash, image_size, is_signed
-- 输出: computed_hash, hash_valid, public values
+### 2. app-c2pa (Pico ZKVM App)
+- Runs on RISC-V architecture (riscv32im-pico-zkvm-elf)
+- Performs simplified C2PA hash verification
+- Input: image_hash, expected_hash, image_size, is_signed
+- Output: computed_hash, hash_valid, public values
 
-### 3. prover-c2pa (ZK Proof 生成器)
-- 加载 app-c2pa 的 ELF
-- 在 Pico ZKVM 上执行 app-c2pa
-- 生成零知识证明并验证 public values
+### 3. prover-c2pa (ZK Proof Generator)
+- Loads ELF from app-c2pa
+- Executes app-c2pa on Pico ZKVM
+- Generates zero knowledge proof and verifies public values
 
-### 4. cropper (图片裁剪工具)
-- 验证原始图片的 C2PA 签名
-- 裁剪图片
-- 创建新的 C2PA manifest 记录裁剪操作
+### 4. cropper (Image Cropping Tool)
+- Verifies original image C2PA signature
+- Crops image
+- Creates new C2PA manifest recording the crop operation
 
-## 常用命令
+## Common Commands
 
 ```bash
-# 构建所有包
+# Build all packages
 cargo build
 
-# 运行 verifier (直接验证)
-cargo run -p verifier -- --file <图片路径>
+# Run verifier (direct verification)
+cargo run -p verifier -- --file <image-path>
 cargo run -p verifier -- --file ./verifier/src/DSC00050.JPG --skip-trust
 
-# 显示修改历史
-cargo run -p verifier -- --file <图片路径> --skip-trust --history
+# Display modification history
+cargo run -p verifier -- --file <image-path> --skip-trust --history
 
-# 构建 Pico ZKVM app
+# Build Pico ZKVM app
 cd app-c2pa && cargo pico build
 
-# 运行 prover (ZK 验证)
+# Run prover (ZK verification)
 cargo run -p prover-c2pa
 
-# 运行 cropper (裁剪图片)
+# Run cropper (crop image)
 cd cropper && cargo build
-./target/debug/cropper --input <原图> --output <输出> --width 1000 --height 1000
+./target/debug/cropper --input <original-image> --output <output> --width 1000 --height 1000
 
-# 运行测试
+# Run tests
 cargo test -p verifier
 ```
 
-## verifier 输出说明
+## verifier Output Explanation
 
-### 验证检查 (Validation Checks)
+### Validation Checks
 
-| 验证项 | 状态 | 说明 |
+| Validation Item | Status | Description |
 |--------|------|------|
-| `timeStamp.validated` | ✅ | 时间戳消息摘要匹配 |
-| `timeStamp.trusted` | ✅ | 时间戳证书受信任 |
-| `claimSignature.validated` | ✅ | 声明签名有效 |
-| `claimSignature.insideValidity` | ✅ | 签名在有效期内 |
-| `assertion.dataHash.match` | ✅ | **图片内容没有被修改** |
-| `signingCredential.untrusted` | ⚠️ | 签名证书不在信任列表中 |
+| `timeStamp.validated` | ✅ | Timestamp message digest matched |
+| `timeStamp.trusted` | ✅ | Timestamp certificate trusted |
+| `claimSignature.validated` | ✅ | Claim signature valid |
+| `claimSignature.insideValidity` | ✅ | Signature within validity period |
+| `assertion.dataHash.match` | ✅ | **Image content not modified** |
+| `signingCredential.untrusted` | ⚠️ | Signing certificate not in trust list |
 
-### 修改历史 (Modification History)
+### Modification History
 
 ```
 --- Modification History (3 steps) ---
-  [Step 1] c2pa.created           # 相机创建
+  [Step 1] c2pa.created           # Camera creation
            Software: SONY_CAMERA
 
-  [Step 2] c2pa.opened            # 打开图片
+  [Step 2] c2pa.opened            # Image opened
 
-  [Step 3] c2pa.cropped           # 裁剪操作
+  [Step 3] c2pa.cropped           # Crop operation
            Params: width: 1000, height: 1000, x: 0, y: 0
 ```
 
-### 重要说明
+### Important Notes
 
-**为什么可以忽略 `signingCredential.untrusted`？**
+**Why can we ignore `signingCredential.untrusted`?**
 
-- 这是两个独立的验证：
-  1. **签名有效** = 用私钥签名，能用公钥解开
-  2. **证书信任** = 证书是否在 Adobe AATL 信任列表中
+- These are two independent verifications:
+  1. **Signature valid** = Signed with private key, can be decrypted with public key
+  2. **Certificate trust** = Whether certificate is in Adobe AATL trust list
 
-- 即使不知道签名者是否可信（证书不受信任），仍可通过以下验证保证图片真实性：
-  - `assertion.dataHash.match` = 图片内容没被修改 ✅
-  - `claimSignature.validated` = 签名有效 ✅
+- Even without knowing if the signer is trustworthy (certificate untrusted), we can still guarantee image authenticity through:
+  - `assertion.dataHash.match` = Image content not modified ✅
+  - `claimSignature.validated` = Signature valid ✅
 
-## 依赖项
+## Dependencies
 
-- **c2pa-rust**: v0.76 - C2PA 签名验证
+- **c2pa-rust**: v0.76 - C2PA signature verification
 - **pico-sdk**: v1.3.0 - Pico ZKVM SDK
-- **clap**: v4.5 - CLI 参数解析
-- **serde**: v1.0.205 - 序列化
-- **log, env_logger**: 日志
-- **image**: v0.25 - 图片处理 (cropper 使用)
+- **clap**: v4.5 - CLI argument parsing
+- **serde**: v1.0.205 - Serialization
+- **log, env_logger**: Logging
+- **image**: v0.25 - Image processing (used by cropper)
 
-## 环境要求
+## Environment Requirements
 
 - Rust nightly-2025-08-04
-- cargo-pico 工具链
+- cargo-pico toolchain
 - Pico SDK
 
-## 注意事项
+## Notes
 
-1. 使用 `--skip-trust` 可以跳过证书信任验证，避免 `signingCredential.untrusted` 警告
-2. 没有 C2PA manifest 的图片会显示 PASSED 但有警告
-3. 完整签名验证需要信任锚点文件
-4. ZK 方式保护了图片数据的隐私，只公开验证结果
+1. Using `--skip-trust` can skip certificate trust verification to avoid `signingCredential.untrusted` warning
+2. Images without C2PA manifest will show PASSED but with warnings
+3. Full signature verification requires trust anchor files
+4. ZK method protects image data privacy, only revealing verification results
